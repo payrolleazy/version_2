@@ -11,7 +11,7 @@ import CandidatePageFrame from '@/components/candidate/ui/CandidatePageFrame';
 import CandidateMessageState from '@/components/candidate/ui/CandidateMessageState';
 import CandidateSurfaceCard from '@/components/candidate/ui/CandidateSurfaceCard';
 import { CandidateOfferRoomLetter } from '@/lib/candidate/contracts';
-import { useCandidateOfferRoom } from '@/hooks/useCandidateOfferRoom';
+import { useCandidateOfferRoom, type CandidateOfferRoomStats } from '@/hooks/useCandidateOfferRoom';
 
 const letterTypeLabels: Record<string, string> = {
   offer_letter: 'Offer Letter',
@@ -124,7 +124,17 @@ function HeroStatusCard({
   );
 }
 
-export default function CandidateOfferRoomScreen({ session }: { session: { access_token?: string } | null }) {
+export default function CandidateOfferRoomScreen({
+  session,
+  initialLetters,
+  initialStats,
+  initialError,
+}: {
+  session: { access_token?: string } | null;
+  initialLetters?: CandidateOfferRoomLetter[];
+  initialStats?: CandidateOfferRoomStats;
+  initialError?: string | null;
+}) {
   const router = useRouter();
   const {
     letters,
@@ -138,7 +148,11 @@ export default function CandidateOfferRoomScreen({ session }: { session: { acces
     closeLetter,
     acknowledgeSelected,
     downloadSelectedPdf,
-  } = useCandidateOfferRoom(session?.access_token, true);
+  } = useCandidateOfferRoom(session?.access_token, true, {
+    initialLetters,
+    initialStats,
+    initialError,
+  });
 
   const latestLetter = letters[0] ?? null;
 
@@ -403,5 +417,6 @@ export default function CandidateOfferRoomScreen({ session }: { session: { acces
     </div>
   );
 }
+
 
 

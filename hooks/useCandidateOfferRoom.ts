@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -14,17 +14,34 @@ export interface CandidateOfferRoomStats {
   acknowledgedCount: number;
 }
 
-export function useCandidateOfferRoom(accessToken?: string, enabled = true) {
-  const [letters, setLetters] = useState<CandidateOfferRoomLetter[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const EMPTY_STATS: CandidateOfferRoomStats = {
+  unreadCount: 0,
+  readCount: 0,
+  acknowledgedCount: 0,
+};
+
+interface UseCandidateOfferRoomOptions {
+  initialLetters?: CandidateOfferRoomLetter[];
+  initialStats?: CandidateOfferRoomStats;
+  initialError?: string | null;
+}
+
+export function useCandidateOfferRoom(
+  accessToken?: string,
+  enabled = true,
+  options: UseCandidateOfferRoomOptions = {},
+) {
+  const hasInitialState =
+    options.initialLetters !== undefined ||
+    options.initialStats !== undefined ||
+    options.initialError !== undefined;
+
+  const [letters, setLetters] = useState<CandidateOfferRoomLetter[]>(options.initialLetters ?? []);
+  const [loading, setLoading] = useState(!hasInitialState);
+  const [error, setError] = useState<string | null>(options.initialError ?? null);
   const [selectedLetter, setSelectedLetter] = useState<CandidateOfferRoomLetter | null>(null);
   const [acknowledging, setAcknowledging] = useState(false);
-  const [stats, setStats] = useState<CandidateOfferRoomStats>({
-    unreadCount: 0,
-    readCount: 0,
-    acknowledgedCount: 0,
-  });
+  const [stats, setStats] = useState<CandidateOfferRoomStats>(options.initialStats ?? EMPTY_STATS);
 
   const fetchLetters = useCallback(async () => {
     if (!accessToken) {
@@ -58,10 +75,12 @@ export function useCandidateOfferRoom(accessToken?: string, enabled = true) {
   }, [accessToken]);
 
   useEffect(() => {
-    if (enabled && accessToken) {
-      void fetchLetters();
+    if (hasInitialState || !enabled || !accessToken) {
+      return;
     }
-  }, [accessToken, enabled, fetchLetters]);
+
+    void fetchLetters();
+  }, [accessToken, enabled, fetchLetters, hasInitialState]);
 
   const openLetter = useCallback(
     async (letter: CandidateOfferRoomLetter) => {
