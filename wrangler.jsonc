@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "version-2-hardened-app",
+  "name": "version-2",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-03-13",
   "compatibility_flags": ["nodejs_compat"],
