@@ -194,15 +194,24 @@ function InterviewListCard({
 
 export default function CandidateInterviewConsole({
   session,
+  initialConsoleData,
+  initialError,
 }: {
   session: CandidateSessionLike;
+  initialConsoleData?: CandidateInterviewConsoleResponse | null;
+  initialError?: string | null;
 }) {
   const router = useRouter();
-  const [consoleData, setConsoleData] = useState<CandidateInterviewConsoleResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const hasInitialData = initialConsoleData !== undefined || initialError !== undefined;
+  const [consoleData, setConsoleData] = useState<CandidateInterviewConsoleResponse | null>(initialConsoleData ?? null);
+  const [loading, setLoading] = useState(!hasInitialData);
+  const [error, setError] = useState<string | null>(initialError ?? null);
 
   useEffect(() => {
+    if (hasInitialData) {
+      return;
+    }
+
     let active = true;
 
     const loadInterviewConsole = async () => {
@@ -232,7 +241,7 @@ export default function CandidateInterviewConsole({
     return () => {
       active = false;
     };
-  }, [session?.access_token]);
+  }, [hasInitialData, session?.access_token]);
 
   const displayName = formatPersonName(
     consoleData?.candidate?.candidate_name ||
@@ -404,5 +413,8 @@ export default function CandidateInterviewConsole({
     </CandidatePageFrame>
   );
 }
+
+
+
 
 

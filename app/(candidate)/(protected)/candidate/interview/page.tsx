@@ -1,15 +1,46 @@
-'use client';
-
-import { useCandidateSession } from '@/components/candidate/shell/CandidateSessionContext';
-
 import CandidateInterviewConsole from '@/components/candidate/interview/CandidateInterviewConsole';
 import CandidateLoadingState from '@/components/candidate/ui/CandidateLoadingState';
 import CandidatePageFrame from '@/components/candidate/ui/CandidatePageFrame';
+import { getServerAuthSnapshot } from '@/lib/auth/session';
+import {
+  CandidateInterviewConsoleResponse,
+  fetchCandidateInterviewConsole,
+} from '@/lib/candidate/contracts';
 
-export default function InterviewPage() {
-  const { session, isLoading } = useCandidateSession();
+async function loadInitialInterviewBundle(session: {
+  access_token?: string;
+}): Promise<{
+  consoleData: CandidateInterviewConsoleResponse | null;
+  error: string | null;
+}> {
+  if (!session.access_token) {
+    return {
+      consoleData: null,
+      error: 'Missing candidate session',
+    };
+  }
 
-  if (isLoading || !session) {
+  const result = await fetchCandidateInterviewConsole(session.access_token);
+
+  if (result.success && result.data) {
+    return {
+      consoleData: result.data,
+      error: null,
+    };
+  }
+
+  return {
+    consoleData: null,
+    error: result.error ?? 'Could not load the interview console.',
+  };
+}
+
+export const dynamic = 'force-dynamic';
+
+export default async function InterviewPage() {
+  const snapshot = await getServerAuthSnapshot();
+
+  if (!snapshot.session) {
     return (
       <CandidatePageFrame
         title="Interview"
@@ -21,5 +52,13 @@ export default function InterviewPage() {
     );
   }
 
-  return <CandidateInterviewConsole session={session} />;
+  const { consoleData, error } = await loadInitialInterviewBundle(snapshot.session);
+
+  return (
+    <CandidateInterviewConsole
+      session={snapshot.session}
+      initialConsoleData={consoleData}
+      initialError={error}
+    />
+  );
 }

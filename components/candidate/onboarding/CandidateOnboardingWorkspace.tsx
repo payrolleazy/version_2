@@ -20,7 +20,7 @@ type CandidateSessionLike = {
   };
 } | null;
 
-interface OnboardingStatusData {
+export interface OnboardingStatusData {
   onboarding_documentation: {
     total_fields_tracked: number;
     fields_filled: number;
@@ -318,11 +318,14 @@ function PendingFieldsPopover({
 
 export default function CandidateOnboardingWorkspace({
   session,
+  initialStatus,
 }: {
   session: CandidateSessionLike;
+  initialStatus?: OnboardingStatusData | null;
 }) {
-  const [status, setStatus] = useState<OnboardingStatusData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const hasInitialStatus = initialStatus !== undefined;
+  const [status, setStatus] = useState<OnboardingStatusData | null>(initialStatus ?? null);
+  const [loading, setLoading] = useState(!hasInitialStatus);
   const [openPendingSectionId, setOpenPendingSectionId] = useState<string | null>(null);
   const [openFormSectionId, setOpenFormSectionId] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState(false);
@@ -331,6 +334,10 @@ export default function CandidateOnboardingWorkspace({
   const [voiceBootReady, setVoiceBootReady] = useState(false);
 
   useEffect(() => {
+    if (hasInitialStatus) {
+      return;
+    }
+
     let active = true;
 
     const loadStatus = async () => {
@@ -355,7 +362,7 @@ export default function CandidateOnboardingWorkspace({
     return () => {
       active = false;
     };
-  }, [session?.access_token]);
+  }, [hasInitialStatus, session?.access_token]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -599,6 +606,7 @@ export default function CandidateOnboardingWorkspace({
     </CandidatePageFrame>
   );
 }
+
 
 
 
