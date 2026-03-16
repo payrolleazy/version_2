@@ -1,38 +1,28 @@
-'use client';
+﻿'use client';
 
+import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import CandidateActionButton from '@/components/candidate/ui/CandidateActionButton';
-import { listCandidateDocumentFiles, uploadCandidateDocumentFiles } from '@/lib/candidate/files';
+import { listCandidateDocumentFiles, CandidateUploadedFile, uploadCandidateDocumentFiles } from '@/lib/candidate/files';
+
+type CandidateUploadSession = Pick<Session, 'access_token'> | null;
+
+type UploadFilePayload = {
+  name: string;
+  base64: string | ArrayBuffer | null;
+  mimeType: string;
+};
 
 interface CandidateDocumentUploadDialogProps {
-  session: any;
+  session: CandidateUploadSession;
   isOpen: boolean;
   onClose: () => void;
   documentTypes: string[];
   initialDocumentType?: string | null;
   bucketTitle?: string | null;
   onUploaded?: () => void;
-}
-
-interface UploadedFile {
-  originalName: string;
-  dataUrl: string;
-  mimeType: string;
-  uploadedAt?: string | null;
-}
-
-interface ListedFileResponse {
-  originalName: string;
-  dataUrl: string;
-  mimeType?: string;
-  uploadedAt?: string | null;
-}
-
-interface FileListResponse {
-  successful?: ListedFileResponse[];
-  error?: string;
 }
 
 function formatTitle(value: string) {
@@ -62,7 +52,7 @@ export default function CandidateDocumentUploadDialog({
   const [documentType, setDocumentType] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<CandidateUploadedFile[]>([]);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -134,6 +124,14 @@ export default function CandidateDocumentUploadDialog({
       return;
     }
 
+    if (!session?.access_token) {
+      setMessage({
+        type: 'error',
+        text: 'Your session has expired. Please sign in again.',
+      });
+      return;
+    }
+
     setIsUploading(true);
     setMessage(null);
 
@@ -141,24 +139,24 @@ export default function CandidateDocumentUploadDialog({
       const filesData = await Promise.all(
         files.map(
           (file) =>
-            new Promise((resolve, reject) => {
+            new Promise<UploadFilePayload>((resolve, reject) => {
               const reader = new FileReader();
 
-              reader.onload = (event) => {
+              reader.onload = (event: ProgressEvent<FileReader>) => {
                 resolve({
                   name: file.name,
-                  base64: event.target?.result,
+                  base64: event.target?.result ?? null,
                   mimeType: file.type,
                 });
               };
 
-              reader.onerror = reject;
+              reader.onerror = () => reject(reader.error ?? new Error('Could not read the selected file.'));
               reader.readAsDataURL(file);
             }),
         ),
       );
 
-      await uploadCandidateDocumentFiles(session.access_token, documentType, filesData as Array<{ name: string; base64: string | ArrayBuffer | null; mimeType: string }>);
+      await uploadCandidateDocumentFiles(session.access_token, documentType, filesData);
 
       setFiles([]);
       setMessage({ type: 'success', text: 'Files uploaded successfully.' });
@@ -172,11 +170,11 @@ export default function CandidateDocumentUploadDialog({
     }
   };
 
-  const openFile = (file: UploadedFile) => {
+  const openFile = (file: CandidateUploadedFile) => {
     window.open(file.dataUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const downloadFile = (file: UploadedFile) => {
+  const downloadFile = (file: CandidateUploadedFile) => {
     const anchor = document.createElement('a');
     anchor.href = file.dataUrl;
     anchor.download = file.originalName;
@@ -210,7 +208,7 @@ export default function CandidateDocumentUploadDialog({
                   <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">
                     Upload Centre
                   </p>
-                  <h2 className="mt-3 truncate text-2xl font-black text-slate-950 dark:text-white whitespace-nowrap">
+                  <h2 className="mt-3 truncate whitespace-nowrap text-2xl font-black text-slate-950 dark:text-white">
                     {bucketTitle ? `${bucketTitle} bucket` : 'Document bucket'}
                   </h2>
                 </div>
@@ -236,11 +234,11 @@ export default function CandidateDocumentUploadDialog({
                       <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                         Upload
                       </p>
-                      <h3 className="mt-3 truncate text-xl font-black text-slate-950 dark:text-white whitespace-nowrap">
+                      <h3 className="mt-3 truncate whitespace-nowrap text-xl font-black text-slate-950 dark:text-white">
                         Add files
                       </h3>
                     </div>
-                    <span className="rounded-full border border-sky-200 bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-200 whitespace-nowrap">
+                    <span className="whitespace-nowrap rounded-full border border-sky-200 bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/15 dark:text-sky-200">
                       {documentTypes.length} type{documentTypes.length === 1 ? '' : 's'}
                     </span>
                   </div>
@@ -259,7 +257,7 @@ export default function CandidateDocumentUploadDialog({
                               key={type}
                               type="button"
                               onClick={() => setDocumentType(type)}
-                              className={`inline-flex h-11 shrink-0 items-center rounded-2xl border px-4 text-sm font-semibold transition-colors whitespace-nowrap ${
+                              className={`inline-flex h-11 shrink-0 items-center whitespace-nowrap rounded-2xl border px-4 text-sm font-semibold transition-colors ${
                                 isActive
                                   ? 'border-sky-500 bg-sky-500 text-white shadow-lg shadow-sky-500/20 dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950'
                                   : 'border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:border-sky-700 dark:hover:bg-slate-900'
@@ -287,10 +285,10 @@ export default function CandidateDocumentUploadDialog({
                         />
                       </svg>
                     </div>
-                    <p className="mt-4 text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    <p className="mt-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white">
                       Choose file(s)
                     </p>
-                    <p className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <p className="mt-2 whitespace-nowrap text-xs font-medium text-slate-500 dark:text-slate-400">
                       PDF, PNG or JPG
                     </p>
                     <input
@@ -310,7 +308,7 @@ export default function CandidateDocumentUploadDialog({
                       </p>
                       {message ? (
                         <span
-                          className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] whitespace-nowrap ${
+                          className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] ${
                             message.type === 'success'
                               ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
                               : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200'
@@ -367,7 +365,7 @@ export default function CandidateDocumentUploadDialog({
                       <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                         Download
                       </p>
-                      <h3 className="mt-3 truncate text-xl font-black text-slate-950 dark:text-white whitespace-nowrap">
+                      <h3 className="mt-3 truncate whitespace-nowrap text-xl font-black text-slate-950 dark:text-white">
                         Review files
                       </h3>
                     </div>
@@ -423,7 +421,7 @@ export default function CandidateDocumentUploadDialog({
                                 >
                                   {file.originalName}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                <p className="mt-1 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
                                   {formatDate(file.uploadedAt)}
                                 </p>
                               </div>
@@ -450,4 +448,3 @@ export default function CandidateDocumentUploadDialog({
     </AnimatePresence>
   );
 }
-

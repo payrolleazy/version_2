@@ -1,4 +1,20 @@
-﻿export const onboardingFormSchema = [
+﻿export interface OnboardingField {
+  name: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  options?: string[];
+  dependsOn?: string;
+  dependsOnValue?: string;
+}
+
+export interface OnboardingSection {
+  id: string;
+  title: string;
+  fields: OnboardingField[];
+}
+
+export const onboardingFormSchema: OnboardingSection[] = [
   {
     id: 'personal',
     title: 'Personal Details',

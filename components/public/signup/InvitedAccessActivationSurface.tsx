@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ActionButton, ActionLink } from '@/components/ui/ActionButton';
 import { PublicSectionCard } from '@/components/public/PublicSection';
@@ -92,16 +92,16 @@ export function InvitedAccessActivationSurface() {
 
   const canPoll = useMemo(() => jobId.length > 0 && !isTerminalStatus(jobStatus), [jobId, jobStatus]);
 
-  function syncQuery(nextJobId: string, nextEmail: string, nextRole: InvitationRole) {
+  const syncQuery = useCallback((nextJobId: string, nextEmail: string, nextRole: InvitationRole) => {
     const params = new URLSearchParams();
     if (nextJobId) params.set('job_id', nextJobId);
     if (nextEmail) params.set('email', nextEmail);
     if (nextRole) params.set('role', nextRole);
     const query = params.toString();
     router.replace(query ? `/signup/invite?${query}` : '/signup/invite');
-  }
+  }, [router]);
 
-  async function pollStatus(targetJobId: string, targetEmail: string, silent = false) {
+  const pollStatus = useCallback(async (targetJobId: string, targetEmail: string, silent = false) => {
     if (!targetJobId) {
       return;
     }
@@ -125,8 +125,8 @@ export function InvitedAccessActivationSurface() {
       setNextSteps(payload.next_steps ?? null);
 
       const resolvedEmail = payload.job.email || targetEmail;
-      if (resolvedEmail && resolvedEmail !== email) {
-        setEmail(resolvedEmail);
+      if (resolvedEmail) {
+        setEmail((currentEmail) => (resolvedEmail !== currentEmail ? resolvedEmail : currentEmail));
       }
     } catch (pollError) {
       setError(pollError instanceof Error ? pollError.message : 'Could not read signup status.');
@@ -135,7 +135,7 @@ export function InvitedAccessActivationSurface() {
         setIsPolling(false);
       }
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!initialJobId) {
@@ -143,7 +143,7 @@ export function InvitedAccessActivationSurface() {
     }
 
     void pollStatus(initialJobId, initialEmail);
-  }, [initialEmail, initialJobId]);
+  }, [initialEmail, initialJobId, pollStatus]);
 
   useEffect(() => {
     if (!canPoll) {
@@ -157,7 +157,7 @@ export function InvitedAccessActivationSurface() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [canPoll, email, jobId]);
+  }, [canPoll, email, jobId, pollStatus]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -263,88 +263,96 @@ export function InvitedAccessActivationSurface() {
           ) : null}
         </div>
 
-        <div className="rounded-[1.9rem] border border-slate-900/90 bg-slate-950 p-7 text-white shadow-[var(--shadow-soft)] sm:p-8">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="grid gap-5 md:grid-cols-2">
-              <label className="block space-y-2 md:col-span-2">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Full name</span>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  required
-                  className="w-full rounded-[1rem] border border-white/12 bg-white/6 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-300/45 focus:bg-white/10"
-                  placeholder="Your full name"
-                />
+        <div className="rounded-[1.8rem] border border-slate-200/70 bg-white/95 p-6 shadow-[var(--shadow-card)]">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-500" htmlFor="invited-full-name">
+                Full name
               </label>
+              <input
+                id="invited-full-name"
+                type="text"
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                required
+                className="w-full rounded-[1rem] border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                placeholder="Your name"
+              />
+            </div>
 
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Email</span>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full rounded-[1rem] border border-white/12 bg-white/6 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-300/45 focus:bg-white/10"
-                  placeholder="you@company.com"
-                />
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-500" htmlFor="invited-email">
+                Email
               </label>
+              <input
+                id="invited-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                className="w-full rounded-[1rem] border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                placeholder="you@company.com"
+              />
+            </div>
 
-              <label className="block space-y-2">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Mobile number</span>
-                <input
-                  type="tel"
-                  value={mobileNumber}
-                  onChange={(event) => setMobileNumber(event.target.value)}
-                  required
-                  autoComplete="tel"
-                  className="w-full rounded-[1rem] border border-white/12 bg-white/6 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-300/45 focus:bg-white/10"
-                  placeholder="Invitation mobile number"
-                />
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-500" htmlFor="invited-mobile">
+                Mobile number
               </label>
+              <input
+                id="invited-mobile"
+                type="tel"
+                value={mobileNumber}
+                onChange={(event) => setMobileNumber(event.target.value)}
+                required
+                className="w-full rounded-[1rem] border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                placeholder="10 digit mobile"
+              />
+            </div>
 
-              <label className="block space-y-2 md:col-span-2">
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  className="w-full rounded-[1rem] border border-white/12 bg-white/6 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-cyan-300/45 focus:bg-white/10"
-                  placeholder="Create your password"
-                />
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-[0.22em] text-slate-500" htmlFor="invited-password">
+                Password
               </label>
+              <input
+                id="invited-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                className="w-full rounded-[1rem] border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-950 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                placeholder="Create a password"
+              />
             </div>
 
             <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-300">Invitation type</p>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-500">Invitation type</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {ROLE_OPTIONS.map((option) => {
                   const selected = invitationRole === option.value;
+
                   return (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => setInvitationRole(option.value)}
-                      className={`rounded-[1rem] border px-4 py-4 text-left transition ${selected ? 'border-cyan-300/55 bg-cyan-300/12' : 'border-white/10 bg-white/5 hover:bg-white/8'}`}
+                      className={`rounded-[1.2rem] border px-4 py-4 text-left transition ${
+                        selected
+                          ? 'border-sky-500 bg-sky-50 shadow-[0_18px_34px_rgba(14,165,233,0.12)]'
+                          : 'border-slate-200 bg-white hover:border-sky-300'
+                      }`}
                     >
-                      <div className="text-sm font-semibold text-white">{option.label}</div>
-                      <div className="mt-1 text-xs leading-6 text-slate-300">{option.description}</div>
+                      <p className="text-sm font-black text-slate-950">{option.label}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{option.description}</p>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 pt-2">
-              <ActionButton type="submit" disabled={isSubmitting || isPolling}>
-                {isSubmitting ? 'Starting activation...' : 'Activate invited access'}
-              </ActionButton>
-              <ActionLink href="/signin" variant="secondary">Already have access</ActionLink>
-            </div>
+            <ActionButton type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Starting activation...' : 'Start activation'}
+            </ActionButton>
           </form>
         </div>
       </div>

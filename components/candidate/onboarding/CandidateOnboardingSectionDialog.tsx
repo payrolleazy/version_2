@@ -1,21 +1,31 @@
-'use client';
+﻿'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
 
 import CandidateOnboardingSectionForm from '@/components/candidate/onboarding/CandidateOnboardingSectionForm';
+import type { OnboardingField } from '@/lib/onboardingFormSchema';
+
+type CandidateOnboardingSession = {
+  access_token?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+    };
+  };
+};
 
 interface CandidateOnboardingSectionDialogProps {
-  session: any;
+  session: CandidateOnboardingSession | null;
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  fields: any[];
+  fields: OnboardingField[];
   labelWidth?: string;
   maxWidth?: string;
 }
 
-// Candidate-owned wrapper around the shared onboarding section form.
-// Keeps the protected candidate route tree insulated from the shared form implementation.
 export default function CandidateOnboardingSectionDialog({
   session,
   isOpen,
@@ -80,3 +90,5 @@ export default function CandidateOnboardingSectionDialog({
     </AnimatePresence>
   );
 }
+
+

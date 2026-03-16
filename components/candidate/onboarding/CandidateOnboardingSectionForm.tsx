@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { callBulkUpsertGateway } from '@/lib/gateway';
@@ -6,21 +6,34 @@ import { getSupabaseBrowserClientSingleton } from '@/lib/supabase/browser-single
 
 import CandidateActionButton from '@/components/candidate/ui/CandidateActionButton';
 import CandidateCallout from '@/components/candidate/ui/CandidateCallout';
+import type { OnboardingField } from '@/lib/onboardingFormSchema';
 
-interface Field {
-  name: string;
-  label: string;
-  type: string;
-  required?: boolean;
-  options?: string[];
-  dependsOn?: string;
-  dependsOnValue?: string;
-}
+type CandidateOnboardingSession = {
+  access_token?: string;
+  user?: {
+    id?: string;
+    email?: string;
+    user_metadata?: {
+      full_name?: string;
+    };
+  };
+};
+
+type FormValue = string;
+type UpsertRecord = Record<string, unknown>;
 
 interface CandidateOnboardingSectionFormProps {
-  session: any;
-  fields: Field[];
+  session: CandidateOnboardingSession | null;
+  fields: OnboardingField[];
   title: string;
+}
+
+function toInputValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return typeof value === 'string' ? value : String(value);
 }
 
 function CandidateField({
@@ -28,8 +41,8 @@ function CandidateField({
   value,
   onChange,
 }: {
-  field: Field;
-  value: any;
+  field: OnboardingField;
+  value: FormValue | undefined;
   onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void;
 }) {
   const baseInputClassName =
@@ -44,7 +57,7 @@ function CandidateField({
           rows={4}
           name={field.name}
           id={field.name}
-          value={value || ''}
+          value={value ?? ''}
           onChange={onChange}
           className={baseInputClassName}
           required={field.required}
@@ -56,7 +69,7 @@ function CandidateField({
         <select
           name={field.name}
           id={field.name}
-          value={value || ''}
+          value={value ?? ''}
           onChange={onChange}
           className={baseInputClassName}
           required={field.required}
@@ -76,7 +89,7 @@ function CandidateField({
           type={field.type}
           name={field.name}
           id={field.name}
-          value={value || ''}
+          value={value ?? ''}
           onChange={onChange}
           className={baseInputClassName}
           required={field.required}
@@ -114,8 +127,8 @@ export default function CandidateOnboardingSectionForm({
   fields,
   title,
 }: CandidateOnboardingSectionFormProps) {
-  const [baseRecord, setBaseRecord] = useState<{ [key: string]: any } | null>(null);
-  const [formData, setFormData] = useState<{ [key: string]: any }>({});
+  const [baseRecord, setBaseRecord] = useState<UpsertRecord | null>(null);
+  const [formData, setFormData] = useState<Record<string, FormValue>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -135,11 +148,12 @@ export default function CandidateOnboardingSectionForm({
         return;
       }
 
-      setBaseRecord(data);
+      const safeRecord = (data ?? null) as UpsertRecord | null;
+      setBaseRecord(safeRecord);
 
-      const initialSectionData: { [key: string]: any } = {};
+      const initialSectionData: Record<string, FormValue> = {};
       fields.forEach((field) => {
-        initialSectionData[field.name] = data?.[field.name] ?? '';
+        initialSectionData[field.name] = toInputValue(safeRecord?.[field.name]);
       });
       setFormData(initialSectionData);
     };
@@ -160,7 +174,11 @@ export default function CandidateOnboardingSectionForm({
     setIsSubmitting(true);
 
     try {
-      const processedData = { ...formData };
+      if (!session?.user?.id || !session.access_token) {
+        throw new Error('Your session has expired. Please sign in again.');
+      }
+
+      const processedData: UpsertRecord = { ...formData };
 
       fields.forEach((field) => {
         if (!field.required && processedData[field.name] === '') {
@@ -168,20 +186,17 @@ export default function CandidateOnboardingSectionForm({
         }
       });
 
-      const completePayload = { ...baseRecord, ...processedData };
-      const payload = {
-        config_id: 'ebcda741-8118-4ec0-8180-d6cbc73153d0',
-        input_rows: [
-          {
-            ...completePayload,
-            user_id: session.user.id,
-          },
-        ],
-      };
+      const completePayload: UpsertRecord = { ...(baseRecord ?? {}), ...processedData };
+      const inputRows: UpsertRecord[] = [
+        {
+          ...completePayload,
+          user_id: session.user.id,
+        },
+      ];
 
       const result = await callBulkUpsertGateway(
         'ebcda741-8118-4ec0-8180-d6cbc73153d0',
-        { input_rows: payload.input_rows },
+        { input_rows: inputRows },
         session.access_token,
       );
 
@@ -191,10 +206,10 @@ export default function CandidateOnboardingSectionForm({
 
       setBaseRecord(completePayload);
       setMessage({ type: 'success', text: `${title} saved successfully.` });
-    } catch (error: any) {
+    } catch (error) {
       setMessage({
         type: 'error',
-        text: error.message || 'Something went wrong while saving this section.',
+        text: error instanceof Error ? error.message : 'Something went wrong while saving this section.',
       });
     } finally {
       setIsSubmitting(false);
@@ -235,4 +250,5 @@ export default function CandidateOnboardingSectionForm({
     </form>
   );
 }
+
 

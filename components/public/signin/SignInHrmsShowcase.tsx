@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 type MiniCardProps = {
   title: string;
@@ -51,7 +51,7 @@ export function SignInHrmsShowcase() {
     <div className="pointer-events-none hidden xl:block">
       <div className="mx-auto max-w-[620px]">
         <div className="mb-3 text-center">
-          <p className="text-[16px] font-black tracking-[0.22em] text-slate-900">PEOPLE'S PLATFORM</p>
+          <p className="text-[16px] font-black tracking-[0.22em] text-slate-900">{"PEOPLE'S PLATFORM"}</p>
           <p className="mt-1 text-[9px] font-semibold tracking-[0.42em] text-slate-400">INTEGRATED HRMS CONTROL CENTER</p>
         </div>
 
@@ -363,4 +363,5 @@ export function SignInHrmsShowcase() {
     </div>
   );
 }
+
 
