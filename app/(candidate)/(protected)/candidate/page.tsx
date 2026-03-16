@@ -1,12 +1,13 @@
-﻿import { Suspense } from 'react';
-
 import CandidateLaunchpad from '@/components/candidate/launchpad/CandidateLaunchpad';
-import CandidateLaunchpadOnboardingPanelLoading from '@/components/candidate/launchpad/CandidateLaunchpadOnboardingPanelLoading';
-import CandidateLaunchpadOnboardingPanelServer from '@/components/candidate/launchpad/CandidateLaunchpadOnboardingPanelServer';
 import CandidateLoadingState from '@/components/candidate/ui/CandidateLoadingState';
 import CandidatePageFrame from '@/components/candidate/ui/CandidatePageFrame';
 import { getServerAuthSnapshot } from '@/lib/auth/session';
-import { CandidateLaunchpadResponse, fetchCandidateLaunchpad } from '@/lib/candidate/contracts';
+import {
+  CandidateLaunchpadResponse,
+  CandidateOnboardingStatusResponse,
+  fetchCandidateLaunchpad,
+  fetchCandidateOnboardingStatus,
+} from '@/lib/candidate/contracts';
 
 type LifeEvents = {
   birthday: string | null;
@@ -16,6 +17,7 @@ type LifeEvents = {
 type LaunchpadBundle = {
   launchpad: CandidateLaunchpadResponse | null;
   lifeEvents: LifeEvents;
+  onboardingStatus: CandidateOnboardingStatusResponse | null;
 };
 
 const EMPTY_LIFE_EVENTS: LifeEvents = {
@@ -31,18 +33,23 @@ async function loadInitialLaunchpadBundle(session: {
       bundle: {
         launchpad: null,
         lifeEvents: EMPTY_LIFE_EVENTS,
+        onboardingStatus: null,
       },
       error: 'Missing candidate session',
     };
   }
 
-  const result = await fetchCandidateLaunchpad(session.access_token, true);
+  const [launchpadResult, onboardingResult] = await Promise.all([
+    fetchCandidateLaunchpad(session.access_token, true),
+    fetchCandidateOnboardingStatus(session.access_token),
+  ]);
 
-  if (result.success && result.data) {
+  if (launchpadResult.success && launchpadResult.data) {
     return {
       bundle: {
-        launchpad: result.data,
+        launchpad: launchpadResult.data,
         lifeEvents: EMPTY_LIFE_EVENTS,
+        onboardingStatus: onboardingResult.success && onboardingResult.data ? onboardingResult.data : null,
       },
       error: null,
     };
@@ -52,8 +59,9 @@ async function loadInitialLaunchpadBundle(session: {
     bundle: {
       launchpad: null,
       lifeEvents: EMPTY_LIFE_EVENTS,
+      onboardingStatus: null,
     },
-    error: result.error ?? 'Failed to load your launchpad',
+    error: launchpadResult.error ?? 'Failed to load your launchpad',
   };
 }
 
@@ -77,11 +85,7 @@ export default async function CandidateHomePage() {
       session={snapshot.session}
       initialBundle={bundle}
       initialError={error}
-      onboardingPanel={
-        <Suspense fallback={<CandidateLaunchpadOnboardingPanelLoading />}>
-          <CandidateLaunchpadOnboardingPanelServer accessToken={snapshot.session.access_token} />
-        </Suspense>
-      }
+      initialOnboardingStatus={bundle.onboardingStatus}
     />
   );
 }

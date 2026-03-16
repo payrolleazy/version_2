@@ -1,9 +1,10 @@
-﻿'use client';
+'use client';
 
 import { memo, useEffect, useMemo, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
+import CandidateLaunchpadOnboardingPanel from '@/components/candidate/launchpad/CandidateLaunchpadOnboardingPanel';
 import CandidateSidebarSection from '@/components/candidate/shell/CandidateSidebarSection';
 import CandidateActionButton from '@/components/candidate/ui/CandidateActionButton';
 import CandidateCallout from '@/components/candidate/ui/CandidateCallout';
@@ -13,7 +14,7 @@ import CandidateMessageState from '@/components/candidate/ui/CandidateMessageSta
 import CandidatePageFrame from '@/components/candidate/ui/CandidatePageFrame';
 import CandidateSurfaceCard from '@/components/candidate/ui/CandidateSurfaceCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { CandidateDocumentGroup, CandidateLaunchpadResponse } from '@/lib/candidate/contracts';
+import { CandidateDocumentGroup, CandidateLaunchpadResponse, CandidateOnboardingStatusResponse } from '@/lib/candidate/contracts';
 
 interface CandidateSessionLike {
   access_token?: string;
@@ -51,7 +52,7 @@ interface CandidateLaunchpadProps {
   session: CandidateSessionLike;
   initialBundle?: LaunchpadBundle;
   initialError?: string | null;
-  onboardingPanel?: React.ReactNode;
+  initialOnboardingStatus?: CandidateOnboardingStatusResponse | null;
 }
 
 const EMPTY_LIFE_EVENTS: LifeEvents = {
@@ -296,7 +297,7 @@ export default function CandidateLaunchpad({
   session,
   initialBundle,
   initialError,
-  onboardingPanel,
+  initialOnboardingStatus,
 }: CandidateLaunchpadProps) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -490,15 +491,7 @@ export default function CandidateLaunchpad({
             </div>
 
             <div className="min-h-0">
-              {onboardingPanel ?? (
-                <div className="flex min-h-0 flex-col rounded-[1.75rem] border border-slate-200 bg-slate-50/85 p-3.5 lg:p-4 dark:border-slate-800 dark:bg-slate-900/70">
-                  <CandidateCallout
-                    tone="info"
-                    title="Onboarding progress is loading"
-                    message="Open onboarding to review the remaining sections while the progress rail refreshes."
-                  />
-                </div>
-              )}
+              <CandidateLaunchpadOnboardingPanel onboardingStatus={initialOnboardingStatus ?? null} />
             </div>
           </div>
         </CandidateSurfaceCard>
@@ -506,3 +499,5 @@ export default function CandidateLaunchpad({
     </CandidatePageFrame>
   );
 }
+
+
