@@ -40,7 +40,7 @@ async function loadInitialLaunchpadBundle(session: {
   }
 
   const [launchpadResult, onboardingResult] = await Promise.all([
-    fetchCandidateLaunchpad(session.access_token, true),
+    fetchCandidateLaunchpad(session.access_token, false),
     fetchCandidateOnboardingStatus(session.access_token),
   ]);
 
@@ -89,3 +89,4 @@ export default async function CandidateHomePage() {
     />
   );
 }
+
